@@ -1,6 +1,7 @@
 'use client';
 
 import { RefreshCw } from 'lucide-react';
+import ProjectSelector from './ProjectSelector';
 
 interface HeaderProps {
   title: string;
@@ -20,6 +21,7 @@ export default function Header({ title, subtitle, onRefresh, refreshing, childre
         </div>
 
         <div className="flex items-center gap-2">
+          <ProjectSelector />
           {children}
           {onRefresh && (
             <button

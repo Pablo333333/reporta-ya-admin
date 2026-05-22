@@ -23,6 +23,9 @@ apiClient.interceptors.request.use((config) => {
   if (typeof window !== 'undefined') {
     const token = localStorage.getItem('admin_token');
     if (token) config.headers.Authorization = `Bearer ${token}`;
+    
+    const territorioId = localStorage.getItem('selected_territorio_id');
+    if (territorioId) config.headers['x-territorio-id'] = territorioId;
   }
   return config;
 });
@@ -71,13 +74,34 @@ export const ConfigAPI = {
   
   // Estados
   getEstados: () => apiClient.get<ConfigEstado[]>('/config/estados'),
+  createEstado: (data: Partial<ConfigEstado>) => apiClient.post<ConfigEstado>('/config/estados', data),
+  updateEstado: (id: string, data: Partial<ConfigEstado>) => apiClient.patch<ConfigEstado>(`/config/estados/${id}`, data),
   
   // Prioridades
   getPrioridades: () => apiClient.get<ConfigPrioridad[]>('/config/prioridades'),
+  createPrioridad: (data: Partial<ConfigPrioridad>) => apiClient.post<ConfigPrioridad>('/config/prioridades', data),
+  updatePrioridad: (id: string, data: Partial<ConfigPrioridad>) => apiClient.patch<ConfigPrioridad>(`/config/prioridades/${id}`, data),
+
+  // Territorios
+  getTerritorios: () => apiClient.get<Territorio[]>('/config/territorios'),
 
   // Sistema
   getSistema: () => apiClient.get<ConfigSistema[]>('/config/sistema'),
   updateSistema: (clave: string, valor: string) => apiClient.patch(`/config/sistema/${clave}`, { valor }),
+
+  // Campos Extra
+  createCampoExtra: (data: any) => apiClient.post('/config/campos-extra', data),
+  deleteCampoExtra: (id: string) => apiClient.delete(`/config/campos-extra/${id}`),
+
+  // Roles y Permisos
+  getRoles: () => apiClient.get<Rol[]>('/config/roles'),
+  getPermisos: () => apiClient.get<Permiso[]>('/config/permisos'),
+  updateRolPermisos: (rolId: string, permisoIds: string[]) => 
+    apiClient.patch(`/config/roles/${rolId}/permisos`, { permisoIds }),
+
+  // Logs de Auditoría
+  getLogs: (params?: { usuarioId?: string; accion?: string }) =>
+    apiClient.get<any[]>('/config/logs', { params }),
 };
 
 export const ComunicadosAPI = {

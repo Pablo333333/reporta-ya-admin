@@ -42,7 +42,7 @@ export default function DashboardPage() {
   const tabParam = searchParams.get('tab') as any;
 
   const [activeTab, setActiveTab] = useState<'map' | 'table' | 'kanban' | 'config'>(tabParam || 'table');
-  const [mapMode, setMapMode] = useState<'markers' | 'heatmap'>('markers');
+  const [mapMode, setMapMode] = useState<'markers' | 'heatmap' | 'risk-zones'>('markers');
   const [reports, setReports] = useState<Reporte[]>([]);
   const [categorias, setCategorias] = useState<ConfigCategoria[]>([]);
   const [estados, setEstados] = useState<ConfigEstado[]>([]);
@@ -317,6 +317,15 @@ export default function DashboardPage() {
                 )}
               >
                 Mapa de Calor
+              </button>
+              <button
+                onClick={() => setMapMode('risk-zones')}
+                className={clsx(
+                  'px-3 py-1.5 text-xs font-bold rounded-lg transition-all',
+                  mapMode === 'risk-zones' ? 'bg-slate-900 text-white' : 'text-slate-500 hover:bg-slate-50'
+                )}
+              >
+                Zonas de Riesgo
               </button>
             </div>
             <div className="flex-1 min-h-0 card overflow-hidden">

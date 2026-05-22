@@ -6,7 +6,7 @@ import type { Comunicado } from '@/lib/types';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Bell, Clock, Plus, Send } from 'lucide-react';
-import { AxiosError } from 'axios';
+import axios, { AxiosError } from 'axios';
 
 export default function ComunicadosPage() {
   const [comunicados, setComunicados] = useState<Comunicado[]>([]);
@@ -45,7 +45,7 @@ export default function ComunicadosPage() {
       setSendSuccess(true);
       setTimeout(() => setSendSuccess(false), 4000);
     } catch (err) {
-      const msg = err instanceof AxiosError ? err.response?.data?.message : undefined;
+      const msg = axios.isAxiosError(err) ? err.response?.data?.message : undefined;
       setSendError(Array.isArray(msg) ? msg.join(' · ') : msg ?? 'Error al publicar el comunicado.');
     } finally {
       setSending(false);

@@ -1,6 +1,6 @@
 // ─── Enumeraciones ─────────────────────────────────────────────────────────────
 
-export type Rol = 'REPORTANTE' | 'RESPONSABLE' | 'SUPERVISOR';
+export type RolName = 'REPORTANTE' | 'RESPONSABLE' | 'SUPERVISOR' | string;
 
 // ─── Configuración Dinámica ────────────────────────────────────────────────────
 
@@ -11,6 +11,15 @@ export interface ConfigCategoria {
   color?: string;
   icono?: string;
   activo: boolean;
+  camposExtra?: ConfigCampoExtra[];
+}
+
+export interface ConfigCampoExtra {
+  id: string;
+  nombre: string;
+  tipo: 'TEXT' | 'NUMBER' | 'BOOLEAN';
+  requerido: boolean;
+  categoriaId: string;
 }
 
 export interface ConfigEstado {
@@ -18,6 +27,7 @@ export interface ConfigEstado {
   nombre: string;
   color?: string;
   esFinal: boolean;
+  requiereFoto: boolean;
   orden: number;
   activo: boolean;
 }
@@ -42,10 +52,30 @@ export interface ConfigSistema {
 export interface Usuario {
   id: string;
   email: string;
+  rolId: string;
   rol: Rol;
   pushToken?: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface Rol {
+  id: string;
+  nombre: string;
+  descripcion?: string;
+  permisos?: RolPermiso[];
+}
+
+export interface Permiso {
+  id: string;
+  nombre: string;
+  descripcion?: string;
+}
+
+export interface RolPermiso {
+  rolId: string;
+  permisoId: string;
+  permiso: Permiso;
 }
 
 export interface Reporte {
@@ -65,8 +95,10 @@ export interface Reporte {
   comentarioResolucion?: string;
   fotoEvidenciaUrl?: string;
   sincronizadoEn?: string | null;
+  valoresCamposExtra?: any;
   reportanteId: string;
   reportante?: Omit<Usuario, 'pushToken'>;
+  indiceRiesgo?: number;
 }
 
 export interface Comunicado {
@@ -87,7 +119,13 @@ export interface LoginResponse {
 export interface JwtUser {
   sub: string;
   email: string;
-  rol: Rol;
+  rol: string;
   iat: number;
   exp: number;
+}
+
+export interface Territorio {
+  id: string;
+  nombre: string;
+  descripcion?: string;
 }

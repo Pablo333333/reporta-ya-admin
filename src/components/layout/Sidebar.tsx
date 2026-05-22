@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import clsx from 'clsx';
-import { BarChart2, Bell, LogOut, Map, ShieldCheck, FileText, Settings } from 'lucide-react';
+import { BarChart2, Bell, LogOut, Map, ShieldCheck, FileText, Settings, History } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import type { JwtUser, ConfigSistema } from '@/lib/types';
@@ -13,6 +13,9 @@ const NAV_ITEMS = [
   { href: '/dashboard/reportes',      label: 'Reportes',           Icon: FileText },
   { href: '/dashboard/estadisticas',  label: 'Estadísticas',       Icon: BarChart2 },
   { href: '/dashboard/comunicados',   label: 'Comunicados',        Icon: Bell },
+  { href: '/dashboard/auditoria',     label: 'Auditoría',          Icon: History },
+  { href: '/dashboard/configurador/campos', label: 'Constructor Formularios', Icon: Settings },
+  { href: '/dashboard/configurador/roles',  label: 'Roles y Permisos',       Icon: ShieldCheck },
 ];
 
 interface SidebarProps {

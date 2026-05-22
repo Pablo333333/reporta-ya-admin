@@ -1,6 +1,6 @@
 'use client';
 
-import { AxiosError } from 'axios';
+import axios, { AxiosError } from 'axios';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { AuthAPI } from '@/lib/api';
@@ -39,7 +39,7 @@ export default function LoginPage() {
       setToken(data.accessToken);
       router.replace('/dashboard/reportes');
     } catch (err) {
-      if (err instanceof AxiosError) {
+      if (axios.isAxiosError(err)) {
         const msg = err.response?.data?.message;
         setError(
           Array.isArray(msg)

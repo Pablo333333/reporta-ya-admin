@@ -1,6 +1,6 @@
 'use client';
 
-import { AxiosError } from 'axios';
+import axios, { AxiosError } from 'axios';
 import clsx from 'clsx';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -36,7 +36,7 @@ export default function ReportDetailModal({ report, estados, onClose, onStatusUp
       toast.success(`Estado actualizado a "${estadoNombre}"`);
       onClose();
     } catch (err) {
-      const msg = err instanceof AxiosError ? err.response?.data?.message : undefined;
+      const msg = axios.isAxiosError(err) ? err.response?.data?.message : undefined;
       const errorText = Array.isArray(msg) ? msg.join(' · ') : msg ?? 'Error al actualizar el estado.';
       setSaveError(errorText);
       toast.error(errorText);
@@ -97,6 +97,87 @@ export default function ReportDetailModal({ report, estados, onClose, onStatusUp
               </InfoRow>
             )}
           </div>
+
+          {/* ─── Análisis de Criticidad (IA Transparente) ─────────────────── */}
+          {report.indiceRiesgo !== undefined && (
+            <div className="bg-slate-900 rounded-2xl p-5 text-white shadow-xl">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Motor de Priorización IA</p>
+                  <h3 className="text-lg font-bold">Análisis de Criticidad</h3>
+                </div>
+                <div className="text-right">
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Índice Total</p>
+                  <p className="text-2xl font-black text-primary-400">{report.indiceRiesgo.toFixed(1)}</p>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                {/* Gravedad */}
+                <div className="space-y-1.5">
+                  <div className="flex justify-between text-[10px] font-bold uppercase tracking-tight">
+                    <span className="text-slate-400">Factor 1: Gravedad (60%)</span>
+                    <span className="text-white">Nivel {report.prioridad.nivel}</span>
+                  </div>
+                  <div className="h-2 w-full bg-slate-800 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-primary-500 transition-all duration-1000" 
+                      style={{ width: `${Math.min((report.prioridad.nivel / 5) * 100, 100)}%` }}
+                    />
+                  </div>
+                </div>
+
+                {/* Frecuencia */}
+                {(() => {
+                  const gravedadContrib = (report.prioridad.nivel || 1) * 0.6;
+                  const frecuenciaContrib = Math.max(0, report.indiceRiesgo - gravedadContrib);
+                  const frecuenciaValue = Math.round(frecuenciaContrib / 0.4);
+                  
+                  return (
+                    <div className="space-y-1.5">
+                      <div className="flex justify-between text-[10px] font-bold uppercase tracking-tight">
+                        <span className="text-slate-400">Factor 2: Frecuencia (40%)</span>
+                        <span className="text-white">{frecuenciaValue} reportes similares en la zona</span>
+                      </div>
+                      <div className="h-2 w-full bg-slate-800 rounded-full overflow-hidden">
+                        <div 
+                          className="h-full bg-amber-500 transition-all duration-1000" 
+                          style={{ width: `${Math.min((frecuenciaValue / 10) * 100, 100)}%` }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                <p className="text-[10px] text-slate-500 italic leading-relaxed">
+                  * Este índice se calcula dinámicamente combinando la gravedad intrínseca de la categoría ({report.categoria.nombre}) 
+                  con la acumulación histórica de incidentes en un radio de 500m durante los últimos 7 días.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Información Técnica Adicional */}
+          {report.valoresCamposExtra && Object.keys(report.valoresCamposExtra).length > 0 && (
+            <div className="bg-primary-50/50 rounded-2xl p-5 border border-primary-100">
+              <p className="text-xs font-black text-primary-600 uppercase tracking-widest mb-3">Información Técnica Adicional</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-y-3 gap-x-6">
+                {Object.entries(report.valoresCamposExtra).map(([fieldId, value]) => {
+                  const fieldConfig = report.categoria.camposExtra?.find(f => f.id === fieldId);
+                  const label = fieldConfig ? fieldConfig.nombre : fieldId;
+                  
+                  return (
+                    <div key={fieldId} className="flex flex-col">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase">{label}</span>
+                      <span className="text-sm font-bold text-slate-700">
+                        {typeof value === 'boolean' ? (value ? 'Sí' : 'No') : String(value)}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Foto */}
           {report.fotoUrl && (

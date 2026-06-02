@@ -1,11 +1,13 @@
 'use client';
 
-import { GoogleMap, InfoWindowF, MarkerF, useLoadScript, HeatmapLayerF, CircleF } from '@react-google-maps/api';
+import { GoogleMap, InfoWindowF, MarkerF, useLoadScript, CircleF } from '@react-google-maps/api';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import type { Reporte } from '@/lib/types';
 import { AlertTriangle, Info, MapPin, TrendingUp } from 'lucide-react';
+import { GoogleMapsOverlay } from '@deck.gl/google-maps';
+import { HeatmapLayer } from '@deck.gl/aggregation-layers';
 
 const MAP_CONTAINER_STYLE = { width: '100%', height: '600px', minHeight: '600px' };
 const DEFAULT_CENTER = { lat: -34.6037, lng: -58.3816 };
@@ -39,6 +41,35 @@ export default function IncidentMap({ reports, mode = 'markers' }: Props) {
   const onMapLoad = useCallback((mapInstance: google.maps.Map) => {
     setMap(mapInstance);
   }, []);
+
+  // Overlay de Deck.gl para el Mapa de Calor (WebGL)
+  const overlay = useMemo(() => {
+    if (mode !== 'heatmap') return null;
+
+    return new GoogleMapsOverlay({
+      layers: [
+        new HeatmapLayer({
+          id: 'heatmap-layer',
+          data: reports,
+          getPosition: (d: Reporte) => [d.longitud, d.latitud],
+          getWeight: (d: Reporte) => d.indiceRiesgo || 1,
+          radiusPixels: 60,
+          intensity: 1,
+          threshold: 0.03,
+          aggregation: 'SUM',
+        })
+      ]
+    });
+  }, [reports, mode]);
+
+  useEffect(() => {
+    if (map && overlay) {
+      overlay.setMap(map);
+    }
+    return () => {
+      overlay?.setMap(null);
+    };
+  }, [map, overlay]);
 
   // Lógica de agrupación para Zonas de Riesgo
   const riskZones = useMemo(() => {
@@ -76,11 +107,6 @@ export default function IncidentMap({ reports, mode = 'markers' }: Props) {
       return { ...z, color };
     });
   }, [reports]);
-
-  const heatmapData = useMemo(() => {
-    if (!isLoaded) return [];
-    return reports.map(r => new google.maps.LatLng(r.latitud, r.longitud));
-  }, [reports, isLoaded]);
 
   if (loadError) {
     return (
@@ -169,17 +195,6 @@ export default function IncidentMap({ reports, mode = 'markers' }: Props) {
           }}
         />
       ))}
-
-      {/* Mapa de Calor */}
-      {mode === 'heatmap' && (
-        <HeatmapLayerF
-          data={heatmapData}
-          options={{
-            radius: 40,
-            opacity: 0.8,
-          }}
-        />
-      )}
 
       {/* Popup de Reporte Individual */}
       {selected && (

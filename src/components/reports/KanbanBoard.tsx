@@ -7,13 +7,13 @@ import { es } from 'date-fns/locale';
 import {
   DndContext,
   DragOverlay,
-  closestCorners,
   KeyboardSensor,
   PointerSensor,
   useSensor,
   useSensors,
   DragEndEvent,
   DragStartEvent,
+  rectIntersection,
 } from '@dnd-kit/core';
 import {
   useSortable,
@@ -46,40 +46,50 @@ export default function KanbanBoard({ reports, estados, onUpdate }: Props) {
     if (report) setActiveReport(report);
   };
 
-  const handleDragEnd = async (event: DragEndEvent) => {
-    const { active, over } = event;
-    setActiveReport(null);
+ const handleDragEnd = async (event: DragEndEvent) => {
+  const { active, over } = event;
+  setActiveReport(null);
 
-    if (!over) return;
+  if (!over) return;
 
-    const reportId = active.id as string;
-    const overId = over.id as string;
+  const activeReportId = active.id as string;
+  const activeReport = reports.find((r) => r.id === activeReportId);
+  if (!activeReport) return;
 
-    // overId can be a column (estadoId) or another card (reportId)
-    let newEstadoId = '';
-    
-    // Check if we dropped over a column
-    const isColumn = estados.some((e) => e.id === overId);
-    if (isColumn) {
-      newEstadoId = overId;
-    } else {
-      // Dropped over another card, get its estadoId
-      const overReport = reports.find((r) => r.id === overId);
-      if (overReport) {
-        newEstadoId = overReport.estadoId;
-      }
+  // NUEVA LÓGICA: Buscamos el ID del estado destino
+  // Intentamos obtener el ID del 'data' del elemento sobre el que soltamos
+  // o navegamos por el DOM si 'over' es una tarjeta interna
+  const overId = over.id as string;
+  let targetEstado: ConfigEstado | undefined;
+
+  // 1. Si soltamos sobre una columna, over.data.current debería tener el estado
+  if (over.data.current?.type === 'column') {
+    targetEstado = over.data.current.estado;
+  } 
+  // 2. Si soltamos sobre una tarjeta, buscamos a qué columna pertenece
+  else {
+    const reportDestino = reports.find(r => r.id === overId);
+    if (reportDestino) {
+      targetEstado = estados.find(e => e.id === reportDestino.estadoId);
     }
+  }
 
-    const report = reports.find((r) => r.id === reportId);
-    if (report && newEstadoId && report.estadoId !== newEstadoId) {
-      await onUpdate(reportId, newEstadoId);
-    }
-  };
+  // 3. Fallback: Si sigue sin encontrarlo, intentamos buscar el ID limpiando el prefijo 'col-'
+  if (!targetEstado) {
+    const cleanId = overId.replace('col-', '');
+    targetEstado = estados.find(e => e.id === cleanId);
+  }
 
+  if (targetEstado && activeReport.estadoId !== targetEstado.id) {
+    await onUpdate(activeReportId, targetEstado.id);
+  } else {
+    console.warn('No se pudo determinar el estado destino. ID detectado:', overId);
+  }
+};
   return (
     <DndContext
       sensors={sensors}
-      collisionDetection={closestCorners}
+      collisionDetection={rectIntersection}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
@@ -101,7 +111,7 @@ export default function KanbanBoard({ reports, estados, onUpdate }: Props) {
 
 function KanbanColumn({ estado, reports }: { estado: ConfigEstado; reports: Reporte[] }) {
   const { setNodeRef } = useSortable({
-    id: estado.id,
+    id: `col-${estado.id}`,
     data: {
       type: 'column',
       estado,

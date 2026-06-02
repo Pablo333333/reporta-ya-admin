@@ -127,10 +127,43 @@ export default function DashboardPage() {
     if (tabParam) setActiveTab(tabParam);
   }, [tabParam]);
 
-  const handleStatusUpdate = async (id: string, estadoId: string, comentario?: string) => {
+ const handleStatusUpdate = async (id: string, estadoId: string, comentario?: string) => {
+  // LOG DE SEGURIDAD: Vamos a ver qué estados tenemos realmente
+  console.log('Estados disponibles en el dashboard:', estados);
+  console.log('ID de estado destino intentado:', estadoId);
+
+  const estadoDestino = estados.find(e => e.id === estadoId);
+
+  // Si no encontramos el estado, lanzamos un aviso para saber por qué
+  if (!estadoDestino) {
+    console.error('ERROR: No se encontró el estado con ID:', estadoId);
+    toast.error('Error de configuración: El estado destino no es válido.');
+    return;
+  }
+
+  try {
+    // 1. Validación preventiva: Si el estado requiere foto, avisamos
+    if (estadoDestino.requiereFoto) {
+      toast.error(`El estado "${estadoDestino.nombre}" requiere foto. Usa el modal de detalles.`, {
+        duration: 5000,
+        icon: '📸'
+      });
+      // Importante: forzamos recarga para que la tarjeta vuelva a su lugar visualmente
+      loadReports(); 
+      return;
+    }
+
+    // 2. Ejecución
     await ReportsAPI.updateStatus(id, estadoId, comentario);
+    toast.success('Estado actualizado correctamente');
     loadReports();
-  };
+  } catch (err: any) {
+    console.error('Error en updateStatus:', err);
+    const msg = err.response?.data?.message || 'Error al actualizar el estado';
+    toast.error(Array.isArray(msg) ? msg.join(' · ') : msg);
+    loadReports();
+  }
+};
 
   const appName = sistema.find(s => s.clave === 'NOMBRE_APP')?.valor || 'Reporta Ya';
   const slogan = sistema.find(s => s.clave === 'SLOGAN')?.valor || 'Gestión Territorial Inteligente';

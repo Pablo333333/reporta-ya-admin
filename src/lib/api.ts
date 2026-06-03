@@ -5,8 +5,11 @@ import type {
   ConfigEstado, 
   ConfigPrioridad, 
   ConfigSistema, 
-  LoginResponse, 
+  LoginResponse,
+  Permiso, 
   Reporte, 
+  Rol, 
+  Territorio,
   Usuario 
 } from './types';
 

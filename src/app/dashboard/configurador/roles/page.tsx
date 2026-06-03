@@ -26,7 +26,7 @@ export default function RolesPage() {
       setPermisos(permisosRes.data);
       if (rolesRes.data.length > 0 && !selectedRolId) {
         setSelectedRolId(rolesRes.data[0].id);
-        setSelectedPermisos(rolesRes.data[0].permisos?.map(p => p.permisoId) || []);
+        setSelectedPermisos(rolesRes.data[0].permisos?.map((p: any) => p.permisoId) || []);
       }
     } catch (err) {
       toast.error('Error al cargar roles y permisos');

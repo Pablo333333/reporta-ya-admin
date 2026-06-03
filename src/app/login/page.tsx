@@ -31,7 +31,7 @@ export default function LoginPage() {
       const { data } = await AuthAPI.login(email.trim(), password);
       const user = jwtDecode<JwtUser>(data.accessToken);
 
-      if (!ADMIN_ROLES.includes(user.rol)) {
+      if (!(ADMIN_ROLES as unknown as string[]).includes(user.rol)) {
         setError('Acceso denegado. Solo pueden ingresar Responsables y Supervisores.');
         return;
       }

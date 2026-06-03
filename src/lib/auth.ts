@@ -1,7 +1,7 @@
 import { jwtDecode } from 'jwt-decode';
 import type { JwtUser, Rol } from './types';
 
-export const ADMIN_ROLES: Rol[] = ['RESPONSABLE' as Rol, 'SUPERVISOR' as Rol];
+export const ADMIN_ROLES: Rol[] = ['RESPONSABLE' as unknown as Rol, 'SUPERVISOR' as unknown as Rol];
 const TOKEN_KEY = 'admin_token';
 
 export function setToken(token: string): void {

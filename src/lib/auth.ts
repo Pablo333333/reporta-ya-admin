@@ -39,5 +39,5 @@ export function getCurrentUser(): JwtUser | null {
 
 export function isAdminUser(): boolean {
   const user = getCurrentUser();
-  return user !== null && ADMIN_ROLES.includes(user.rol as Rol);
+  return user !== null && ADMIN_ROLES.includes(user.rol as unknown as Rol);
 }

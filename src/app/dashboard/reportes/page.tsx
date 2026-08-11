@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useCallback, useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
@@ -24,6 +24,7 @@ import {
 import clsx from 'clsx';
 import dynamic from 'next/dynamic';
 import NewReportModal from '@/components/reports/NewReportModal';
+import SistemaConfigModule from '@/components/config/SistemaConfigModule';
 
 const IncidentMap = dynamic(() => import('@/components/map/IncidentMap'), { ssr: false });
 const KanbanBoard = dynamic(() => import('@/components/reports/KanbanBoard'), { ssr: false });
@@ -100,7 +101,7 @@ export default function DashboardPage() {
       });
       setReports(data);
 
-      // Si no tenemos categorías o estados (porque la API dio 404), los extraemos de los reportes
+      // Si no tenemos categorÃ­as o estados (porque la API dio 404), los extraemos de los reportes
       setCategorias(prev => {
         if (prev.length > 0) return prev;
         const uniqueCats = Array.from(new Map(data.map(r => [r.categoria.id, r.categoria])).values());
@@ -127,50 +128,53 @@ export default function DashboardPage() {
     if (tabParam) setActiveTab(tabParam);
   }, [tabParam]);
 
- const handleStatusUpdate = async (id: string, estadoId: string, comentario?: string) => {
-  // LOG DE SEGURIDAD: Vamos a ver qué estados tenemos realmente
-  console.log('Estados disponibles en el dashboard:', estados);
-  console.log('ID de estado destino intentado:', estadoId);
+  const handleStatusUpdate = async (
+    id: string,
+    estadoId: string,
+    comentario?: string,
+    categoriaId?: string,
+  ) => {
+    const estadoDestino = estados.find((e) => e.id === estadoId);
 
-  const estadoDestino = estados.find(e => e.id === estadoId);
-
-  // Si no encontramos el estado, lanzamos un aviso para saber por qué
-  if (!estadoDestino) {
-    console.error('ERROR: No se encontró el estado con ID:', estadoId);
-    toast.error('Error de configuración: El estado destino no es válido.');
-    return;
-  }
-
-  try {
-    // 1. Validación preventiva: Si el estado requiere foto, avisamos
-    if (estadoDestino.requiereFoto) {
-      toast.error(`El estado "${estadoDestino.nombre}" requiere foto. Usa el modal de detalles.`, {
-        duration: 5000,
-        icon: '📸'
-      });
-      // Importante: forzamos recarga para que la tarjeta vuelva a su lugar visualmente
-      loadReports(); 
+    if (!estadoDestino) {
+      console.error('ERROR: No se encontró el estado con ID:', estadoId);
+      toast.error('Error de configuración: El estado destino no es válido.');
       return;
     }
 
-    // 2. Ejecución
-    await ReportsAPI.updateStatus(id, estadoId, comentario);
-    toast.success('Estado actualizado correctamente');
-    loadReports();
-  } catch (err: any) {
-    console.error('Error en updateStatus:', err);
-    const msg = err.response?.data?.message || 'Error al actualizar el estado';
-    toast.error(Array.isArray(msg) ? msg.join(' · ') : msg);
-    loadReports();
-  }
-};
+    try {
+      const reporteActual = reports.find((r) => r.id === id);
+      // Solo bloquear al CAMBIAR hacia un estado que exige foto (p. ej. drag en Kanban).
+      // Permitir guardar si el reporte ya está en ese estado (p. ej. solo corrige categoría).
+      if (estadoDestino.requiereFoto && reporteActual?.estadoId !== estadoId) {
+        const msg = `El estado "${estadoDestino.nombre}" requiere foto. Usa el modal de detalles.`;
+        toast.error(msg, { duration: 5000, icon: '📷' });
+        loadReports();
+        throw new Error(msg);
+      }
+
+      await ReportsAPI.updateStatus(id, estadoId, comentario, categoriaId);
+      toast.success(
+        categoriaId && categoriaId !== reporteActual?.categoriaId
+          ? 'Categoría corregida. Se registró para aprendizaje continuo.'
+          : 'Estado actualizado correctamente',
+      );
+      loadReports();
+    } catch (err: any) {
+      console.error('Error en updateStatus:', err);
+      const msg = err.response?.data?.message || 'Error al actualizar el estado';
+      toast.error(Array.isArray(msg) ? msg.join(' · ') : msg);
+      loadReports();
+      throw err;
+    }
+  };
 
   const appName = sistema.find(s => s.clave === 'NOMBRE_APP')?.valor || 'Reporta Ya';
-  const slogan = sistema.find(s => s.clave === 'SLOGAN')?.valor || 'Gestión Territorial Inteligente';
+  const slogan = sistema.find(s => s.clave === 'SLOGAN')?.valor || 'GestiÃ³n Territorial Inteligente';
 
   return (
     <div className="flex flex-col h-full space-y-6">
-      {/* ─── Header Dinámico ────────────────────────────────────────────── */}
+      {/* â”€â”€â”€ Header DinÃ¡mico â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-black text-slate-900 tracking-tight">{appName}</h1>
@@ -185,7 +189,7 @@ export default function DashboardPage() {
         </button>
       </div>
 
-      {/* ─── Tabs de Navegación ──────────────────────────────────────────── */}
+      {/* â”€â”€â”€ Tabs de NavegaciÃ³n â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <div className="flex items-center justify-between bg-white p-1.5 rounded-2xl shadow-sm border border-slate-200">
         <div className="flex gap-1">
           <TabButton 
@@ -210,14 +214,17 @@ export default function DashboardPage() {
         <div className="pr-1">
           <TabButton 
             active={activeTab === 'config'} 
-            onClick={() => setActiveTab('config')} 
+            onClick={() => {
+              setActiveTab('config');
+              router.replace('/dashboard/reportes?tab=config');
+            }} 
             icon={<Settings className="h-4 w-4" />}
-            label="Configuración"
+            label="ConfiguraciÃ³n"
           />
         </div>
       </div>
 
-      {/* ─── Contenido Principal ─────────────────────────────────────────── */}
+      {/* â”€â”€â”€ Contenido Principal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <div className="flex-1 min-h-0">
         {activeTab === 'table' && (
           <div className="space-y-4 h-full flex flex-col">
@@ -254,13 +261,13 @@ export default function DashboardPage() {
                     </select>
                   </div>
                   <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">Categoría</label>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">CategorÃ­a</label>
                     <select 
                       className="input-field"
                       value={filtros.categoriaId}
                       onChange={(e) => setFiltros(f => ({ ...f, categoriaId: e.target.value }))}
                     >
-                      <option value="">Todas las categorías</option>
+                      <option value="">Todas las categorÃ­as</option>
                       {categorias.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
                     </select>
                   </div>
@@ -275,7 +282,7 @@ export default function DashboardPage() {
                   <thead className="bg-slate-50 sticky top-0 z-10 border-b border-slate-200">
                     <tr>
                       <th className="px-4 py-3 text-left font-bold text-slate-500 uppercase text-[10px] tracking-wider">Fecha</th>
-                      <th className="px-4 py-3 text-left font-bold text-slate-500 uppercase text-[10px] tracking-wider">Categoría</th>
+                      <th className="px-4 py-3 text-left font-bold text-slate-500 uppercase text-[10px] tracking-wider">CategorÃ­a</th>
                       <th className="px-4 py-3 text-left font-bold text-slate-500 uppercase text-[10px] tracking-wider">Estado</th>
                       <th className="px-4 py-3 text-left font-bold text-slate-500 uppercase text-[10px] tracking-wider">Prioridad</th>
                       <th className="px-4 py-3 text-right font-bold text-slate-500 uppercase text-[10px] tracking-wider">Acciones</th>
@@ -306,7 +313,7 @@ export default function DashboardPage() {
                 </table>
               </div>
 
-              {/* Paginación */}
+              {/* PaginaciÃ³n */}
               <div className="p-4 border-t border-slate-100 flex items-center justify-between bg-slate-50/50">
                 <p className="text-xs text-slate-500 font-medium">Mostrando {reports.length} reportes</p>
                 <div className="flex gap-2">
@@ -371,13 +378,33 @@ export default function DashboardPage() {
           </div>
         )}
         {activeTab === 'kanban' && <KanbanBoard reports={reports} estados={estados} onUpdate={handleStatusUpdate} />}
-        {activeTab === 'config' && <ConfigModule categorias={categorias} refresh={loadInitialData} />}
+        {activeTab === 'config' && (
+          <div className="space-y-4">
+            <div className="rounded-xl border border-primary-100 bg-primary-50 px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+              <p className="text-sm text-primary-900 font-medium">
+                La configuraciÃ³n completa (estados, prioridades, formularios) estÃ¡ en el menÃº{' '}
+                <strong>ConfiguraciÃ³n</strong> del sidebar.
+              </p>
+              <button
+                type="button"
+                className="btn-primary text-xs py-2 px-3"
+                onClick={() => router.push('/dashboard/configurador/sistema')}
+              >
+                Abrir Config. Sistema
+              </button>
+            </div>
+            <SistemaConfigModule initialCategorias={categorias} refresh={loadInitialData} />
+          </div>
+        )}
       </div>
 
       {selected && (
         <ReportDetailModal
           report={selected}
           estados={estados}
+          categorias={categorias}
+          pesoGravedad={parseFloat(sistema.find(s => s.clave === 'PESO_GRAVEDAD')?.valor || '0.6')}
+          pesoFrecuencia={parseFloat(sistema.find(s => s.clave === 'PESO_FRECUENCIA')?.valor || '0.4')}
           onClose={() => setSelected(null)}
           onStatusUpdate={handleStatusUpdate}
         />
@@ -408,165 +435,5 @@ function TabButton({ active, onClick, icon, label }: any) {
       {icon}
       {label}
     </button>
-  );
-}
-
-function ConfigModule({ categorias: initialCategorias, refresh }: any) {
-  const [sistema, setSistema] = useState<any[]>([]);
-  const [localCategorias, setLocalCategorias] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [loadingCats, setLoadingCats] = useState(false);
-  
-  const loadCategorias = useCallback(async () => {
-    setLoadingCats(true);
-    try {
-      const res = await ConfigAPI.getCategorias();
-      setLocalCategorias(res.data);
-    } catch (err) {
-      console.warn('Error al cargar categorías reales, usando iniciales:', err);
-      setLocalCategorias(initialCategorias);
-    } finally {
-      setLoadingCats(false);
-    }
-  }, [initialCategorias]);
-
-  useEffect(() => {
-    loadCategorias();
-  }, [loadCategorias]);
-
-  useEffect(() => {
-    setLoading(true);
-    ConfigAPI.getSistema()
-      .then(res => setSistema(res.data))
-      .catch(err => {
-        console.warn('API de Sistema no disponible, usando mocks:', err.message);
-        setSistema([
-          { clave: 'NOMBRE_APP', valor: 'Reporta Ya', descripcion: 'Nombre comercial de la plataforma' },
-          { clave: 'SLOGAN', valor: 'Vigilancia Territorial Inteligente', descripcion: 'Slogan de la pantalla principal' },
-          { clave: 'COLOR_PRIMARIO', valor: '#007AFF', descripcion: 'Color hexadecimal de la interfaz móvil' }
-        ]);
-      })
-      .finally(() => setLoading(false));
-  }, []);
-
-  const handleUpdateSistema = async (clave: string, valor: string) => {
-    setSistema(prev => prev.map(s => s.clave === clave ? { ...s, valor } : s));
-    try {
-      await ConfigAPI.updateSistema(clave, valor);
-      toast.success(`Configuración "${clave}" actualizada.`);
-    } catch (err) {
-      console.error('Error al persistir sistema:', err);
-      toast.error('Error de conexión. Cambio local.', { icon: '⚠️' });
-    }
-  };
-
-  const handleAddCategoria = async () => {
-    const nombre = prompt('Nombre de la nueva categoría:');
-    if (!nombre) return;
-
-    try {
-      const res = await ConfigAPI.createCategoria({ 
-        nombre,
-        color: '#' + Math.floor(Math.random()*16777215).toString(16),
-        activo: true
-      });
-      setLocalCategorias(prev => [res.data, ...prev]);
-      toast.success('Categoría creada exitosamente');
-      if (refresh) refresh();
-    } catch (err) {
-      console.error('Error al crear categoría:', err);
-      toast.error('No se pudo crear la categoría en el servidor');
-    }
-  };
-
-  const handleEditCategoria = async (cat: any) => {
-    const nuevoNombre = prompt('Nuevo nombre para la categoría:', cat.nombre);
-    if (!nuevoNombre || nuevoNombre === cat.nombre) return;
-
-    try {
-      const res = await ConfigAPI.updateCategoria(cat.id, { nombre: nuevoNombre });
-      setLocalCategorias(prev => prev.map(c => c.id === cat.id ? res.data : c));
-      toast.success('Categoría actualizada');
-      if (refresh) refresh();
-    } catch (err) {
-      console.error('Error al editar categoría:', err);
-      toast.error('No se pudo actualizar la categoría');
-    }
-  };
-
-  return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 h-full overflow-y-auto pb-10">
-      <div className="card p-6 space-y-6">
-        <div className="border-b border-slate-100 pb-4">
-          <h3 className="text-lg font-black text-slate-900">Configuración del Sistema</h3>
-          <p className="text-sm text-slate-500">Ajustes globales de la plataforma</p>
-        </div>
-        {loading ? (
-          <div className="flex justify-center py-10">
-            <div className="h-6 w-6 rounded-full border-2 border-primary-200 border-t-primary-600 animate-spin" />
-          </div>
-        ) : (
-          <div className="space-y-5">
-            {sistema.map(s => (
-              <div key={s.clave} className="space-y-1.5">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">{s.clave.replace(/_/g, ' ')}</label>
-                <input 
-                  className="input-field font-medium" 
-                  defaultValue={s.valor} 
-                  onBlur={(e) => {
-                    if (e.target.value !== s.valor) {
-                      handleUpdateSistema(s.clave, e.target.value);
-                    }
-                  }}
-                />
-                <p className="text-[10px] text-slate-400 italic">{s.descripcion}</p>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      <div className="card p-6 space-y-6">
-        <div className="flex items-center justify-between border-b border-slate-100 pb-4">
-          <div>
-            <h3 className="text-lg font-black text-slate-900">Gestión de Categorías</h3>
-            <p className="text-sm text-slate-500">Catálogo de problemas territoriales</p>
-          </div>
-          <button 
-            onClick={handleAddCategoria}
-            className="btn-primary text-xs py-2 px-4 rounded-xl font-bold"
-          >
-            + Nueva
-          </button>
-        </div>
-        <div className="space-y-3">
-          {loadingCats ? (
-            <div className="flex justify-center py-10">
-              <div className="h-6 w-6 rounded-full border-2 border-primary-200 border-t-primary-600 animate-spin" />
-            </div>
-          ) : localCategorias.length === 0 ? (
-            <p className="text-xs text-slate-400 italic text-center py-10">No hay categorías disponibles</p>
-          ) : (
-            localCategorias.map((c: any) => (
-              <div key={c.id} className="flex items-center justify-between p-4 bg-slate-50/50 rounded-2xl border border-slate-200 hover:border-primary-200 transition-colors">
-                <div className="flex items-center gap-4">
-                  <div className="h-4 w-4 rounded-full shadow-sm" style={{ backgroundColor: c.color }} />
-                  <div>
-                    <p className="text-sm font-black text-slate-900">{c.nombre}</p>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">{c.activo ? 'Activa' : 'Inactiva'}</p>
-                  </div>
-                </div>
-                <button 
-                  onClick={() => handleEditCategoria(c)}
-                  className="text-primary-600 text-xs font-black hover:text-primary-800"
-                >
-                  EDITAR
-                </button>
-              </div>
-            ))
-          )}
-        </div>
-      </div>
-    </div>
   );
 }

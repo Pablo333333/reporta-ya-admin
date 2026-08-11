@@ -1,6 +1,6 @@
 'use client';
 
-import axios, { AxiosError } from 'axios';
+import axios from 'axios';
 import clsx from 'clsx';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -8,6 +8,7 @@ import { ExternalLink, X } from 'lucide-react';
 import { useState } from 'react';
 import toast from 'react-hot-toast';
 import {
+  type ConfigCategoria,
   type ConfigEstado,
   type Reporte,
 } from '@/lib/types';
@@ -15,25 +16,51 @@ import {
 interface Props {
   report: Reporte;
   estados: ConfigEstado[];
+  categorias: ConfigCategoria[];
+  /** Pesos de la fórmula de riesgo (ConfigSistema). Defaults 0.6 / 0.4 */
+  pesoGravedad?: number;
+  pesoFrecuencia?: number;
   onClose: () => void;
-  onStatusUpdate: (id: string, estadoId: string, comentario?: string) => Promise<void>;
+  onStatusUpdate: (
+    id: string,
+    estadoId: string,
+    comentario?: string,
+    categoriaId?: string,
+  ) => Promise<void>;
 }
 
-export default function ReportDetailModal({ report, estados, onClose, onStatusUpdate }: Props) {
-  const [newEstadoId, setNewEstadoId]   = useState<string>(report.estadoId);
-  const [comentario, setComentario]     = useState(report.comentarioResolucion ?? '');
-  const [saving, setSaving]             = useState(false);
-  const [saveError, setSaveError]       = useState<string | null>(null);
+export default function ReportDetailModal({
+  report,
+  estados,
+  categorias,
+  pesoGravedad = 0.6,
+  pesoFrecuencia = 0.4,
+  onClose,
+  onStatusUpdate,
+}: Props) {
+  const [newEstadoId, setNewEstadoId] = useState<string>(report.estadoId);
+  const [newCategoriaId, setNewCategoriaId] = useState<string>(report.categoriaId);
+  const [comentario, setComentario] = useState(report.comentarioResolucion ?? '');
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
-  const hasChanges = newEstadoId !== report.estadoId || (comentario !== (report.comentarioResolucion ?? ''));
+  const categoriasActivas = categorias.filter((c) => c.activo);
+  const categoriaChanged = newCategoriaId !== report.categoriaId;
+  const hasChanges =
+    newEstadoId !== report.estadoId ||
+    categoriaChanged ||
+    comentario !== (report.comentarioResolucion ?? '');
 
   const handleSave = async () => {
     setSaving(true);
     setSaveError(null);
     try {
-      await onStatusUpdate(report.id, newEstadoId, comentario || undefined);
-      const estadoNombre = estados.find(e => e.id === newEstadoId)?.nombre ?? 'Actualizado';
-      toast.success(`Estado actualizado a "${estadoNombre}"`);
+      await onStatusUpdate(
+        report.id,
+        newEstadoId,
+        comentario || undefined,
+        categoriaChanged ? newCategoriaId : undefined,
+      );
       onClose();
     } catch (err) {
       const msg = axios.isAxiosError(err) ? err.response?.data?.message : undefined;
@@ -54,7 +81,9 @@ export default function ReportDetailModal({ report, estados, onClose, onStatusUp
         {/* Header */}
         <div className="flex items-start justify-between p-6 border-b border-slate-100">
           <div>
-            <h2 className="text-lg font-bold text-slate-900">{report.categoria.nombre}</h2>
+            <h2 className="text-lg font-bold text-slate-900">
+              {categorias.find((c) => c.id === newCategoriaId)?.nombre ?? report.categoria.nombre}
+            </h2>
             <p className="text-xs text-slate-500 mt-0.5 font-mono">{report.id}</p>
           </div>
           <button
@@ -98,13 +127,15 @@ export default function ReportDetailModal({ report, estados, onClose, onStatusUp
             )}
           </div>
 
-          {/* ─── Análisis de Criticidad (IA Transparente) ─────────────────── */}
+          {/* ─── Índice de riesgo territorial (fórmula por pesos) ──────────── */}
           {report.indiceRiesgo !== undefined && (
             <div className="bg-slate-900 rounded-2xl p-5 text-white shadow-xl">
               <div className="flex items-center justify-between mb-4">
                 <div>
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Motor de Priorización IA</p>
-                  <h3 className="text-lg font-bold">Análisis de Criticidad</h3>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                    Índice de Riesgo Territorial
+                  </p>
+                  <h3 className="text-lg font-bold">Fórmula de criticidad</h3>
                 </div>
                 <div className="text-right">
                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Índice Total</p>
@@ -113,35 +144,41 @@ export default function ReportDetailModal({ report, estados, onClose, onStatusUp
               </div>
 
               <div className="space-y-4">
-                {/* Gravedad */}
                 <div className="space-y-1.5">
                   <div className="flex justify-between text-[10px] font-bold uppercase tracking-tight">
-                    <span className="text-slate-400">Factor 1: Gravedad (60%)</span>
+                    <span className="text-slate-400">
+                      Factor 1: Gravedad ({Math.round(pesoGravedad * 100)}%)
+                    </span>
                     <span className="text-white">Nivel {report.prioridad.nivel}</span>
                   </div>
                   <div className="h-2 w-full bg-slate-800 rounded-full overflow-hidden">
-                    <div 
-                      className="h-full bg-primary-500 transition-all duration-1000" 
+                    <div
+                      className="h-full bg-primary-500 transition-all duration-1000"
                       style={{ width: `${Math.min((report.prioridad.nivel / 5) * 100, 100)}%` }}
                     />
                   </div>
                 </div>
 
-                {/* Frecuencia */}
                 {(() => {
-                  const gravedadContrib = (report.prioridad.nivel || 1) * 0.6;
+                  const g = pesoGravedad > 0 ? pesoGravedad : 0.6;
+                  const f = pesoFrecuencia > 0 ? pesoFrecuencia : 0.4;
+                  const gravedadContrib = (report.prioridad.nivel || 1) * g;
                   const frecuenciaContrib = Math.max(0, report.indiceRiesgo - gravedadContrib);
-                  const frecuenciaValue = Math.round(frecuenciaContrib / 0.4);
-                  
+                  const frecuenciaValue = Math.round(frecuenciaContrib / f);
+
                   return (
                     <div className="space-y-1.5">
                       <div className="flex justify-between text-[10px] font-bold uppercase tracking-tight">
-                        <span className="text-slate-400">Factor 2: Frecuencia (40%)</span>
-                        <span className="text-white">{frecuenciaValue} reportes similares en la zona</span>
+                        <span className="text-slate-400">
+                          Factor 2: Frecuencia ({Math.round(f * 100)}%)
+                        </span>
+                        <span className="text-white">
+                          {frecuenciaValue} reportes similares en la zona
+                        </span>
                       </div>
                       <div className="h-2 w-full bg-slate-800 rounded-full overflow-hidden">
-                        <div 
-                          className="h-full bg-amber-500 transition-all duration-1000" 
+                        <div
+                          className="h-full bg-amber-500 transition-all duration-1000"
                           style={{ width: `${Math.min((frecuenciaValue / 10) * 100, 100)}%` }}
                         />
                       </div>
@@ -150,8 +187,9 @@ export default function ReportDetailModal({ report, estados, onClose, onStatusUp
                 })()}
 
                 <p className="text-[10px] text-slate-500 italic leading-relaxed">
-                  * Este índice se calcula dinámicamente combinando la gravedad intrínseca de la categoría ({report.categoria.nombre}) 
-                  con la acumulación histórica de incidentes en un radio de 500m durante los últimos 7 días.
+                  * Cálculo determinístico: (nivel de prioridad × {pesoGravedad}) +
+                  (frecuencia de reportes abiertos misma zona/categoría en 7 días × {pesoFrecuencia}).
+                  No usa un modelo de IA; los pesos se configuran en Prioridades.
                 </p>
               </div>
             </div>
@@ -201,14 +239,37 @@ export default function ReportDetailModal({ report, estados, onClose, onStatusUp
             </div>
           )}
 
-          {/* ─── Actualizar estado ────────────────────────────────────────── */}
+          {/* ─── Actualizar estado / categoría ─────────────────────────────── */}
           <div className="border-t border-slate-100 pt-5">
-            <p className="text-sm font-bold text-slate-900 mb-4">Actualizar estado</p>
+            <p className="text-sm font-bold text-slate-900 mb-4">Actualizar reporte</p>
 
+            <div className="mb-4">
+              <label className="label mb-1.5 block">Categoría</label>
+              <select
+                className="input-field"
+                value={newCategoriaId}
+                onChange={(e) => setNewCategoriaId(e.target.value)}
+              >
+                {categoriasActivas.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.nombre}
+                  </option>
+                ))}
+              </select>
+              {categoriaChanged && (
+                <p className="mt-1.5 text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-2.5 py-1.5">
+                  Al guardar, la corrección se guarda en aprendizaje_ia y se usa como ejemplo en
+                  futuras clasificaciones automáticas.
+                </p>
+              )}
+            </div>
+
+            <p className="label mb-1.5 block">Estado</p>
             <div className="flex flex-wrap gap-2 mb-4">
               {estados.map((e) => (
                 <button
                   key={e.id}
+                  type="button"
                   onClick={() => setNewEstadoId(e.id)}
                   className={clsx(
                     'rounded-lg px-3 py-1.5 text-xs font-semibold border transition-all',

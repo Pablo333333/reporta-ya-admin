@@ -11,7 +11,7 @@ import { Plus } from 'lucide-react';
 const PAGE_META: Record<string, { title: string; subtitle: string }> = {
   '/dashboard/mapa':         { title: 'Mapa de Incidentes',   subtitle: 'Vista geográfica de todos los reportes activos' },
   '/dashboard/reportes':     { title: 'Reportes',             subtitle: 'Gestión y seguimiento de incidentes viales' },
-  '/dashboard/estadisticas': { title: 'Estadísticas',         subtitle: 'Análisis de rendimiento y puntos críticos' },
+  '/dashboard/estadisticas': { title: 'Estadísticas',         subtitle: 'KPIs operativos y zonas con mayor índice de riesgo' },
   '/dashboard/comunicados':  { title: 'Comunicados',          subtitle: 'Alertas y avisos para la app móvil' },
 };
 

@@ -3,11 +3,13 @@ import type {
   Comunicado, 
   ConfigCategoria, 
   ConfigEstado, 
+  ConfigMensajeAuto,
   ConfigPrioridad, 
   ConfigSistema, 
   LoginResponse,
   Permiso, 
   Reporte, 
+  ReportsAnalytics,
   Rol, 
   Territorio,
   Usuario 
@@ -59,14 +61,25 @@ export const ReportsAPI = {
 
   getById: (id: string) => apiClient.get<Reporte>(`/reports/${id}`),
 
-  updateStatus: (id: string, estadoId: string, comentarioResolucion?: string) =>
+  updateStatus: (
+    id: string,
+    estadoId: string,
+    comentarioResolucion?: string,
+    categoriaId?: string,
+  ) =>
     apiClient.patch<Reporte>(`/reports/${id}/status`, {
       estadoId,
       ...(comentarioResolucion?.trim() && { comentarioResolucion }),
+      ...(categoriaId && { categoriaId }),
     }),
 
   create: (payload: any) =>
     apiClient.post<Reporte>('/reports', payload),
+
+  getAnalytics: (params?: { from?: string; to?: string }) =>
+    apiClient.get<ReportsAnalytics>('/reports/analytics', { params }),
+
+  checkSla: () => apiClient.post<{ evaluados: number; incumplidosNuevos: number; alertados: number }>('/reports/check-sla'),
 };
 
 export const ConfigAPI = {
@@ -105,16 +118,27 @@ export const ConfigAPI = {
   // Logs de Auditoría
   getLogs: (params?: { usuarioId?: string; accion?: string }) =>
     apiClient.get<any[]>('/config/logs', { params }),
+
+  // Mensajes automáticos
+  getMensajesAuto: () => apiClient.get<ConfigMensajeAuto[]>('/config/mensajes-auto'),
+  createMensajeAuto: (data: Partial<ConfigMensajeAuto>) =>
+    apiClient.post<ConfigMensajeAuto>('/config/mensajes-auto', data),
+  updateMensajeAuto: (id: string, data: Partial<ConfigMensajeAuto>) =>
+    apiClient.patch<ConfigMensajeAuto>(`/config/mensajes-auto/${id}`, data),
+  deleteMensajeAuto: (id: string) => apiClient.delete(`/config/mensajes-auto/${id}`),
 };
 
 export const ComunicadosAPI = {
   getAll: () => apiClient.get<Comunicado[]>('/comunicados'),
 
-  create: (mensaje: string, duracionRestriccion?: number) =>
-    apiClient.post<Comunicado>('/comunicados', {
-      mensaje,
-      ...(duracionRestriccion && duracionRestriccion > 0 ? { duracionRestriccion } : {}),
-    }),
+  create: (payload: {
+    mensaje: string;
+    duracionRestriccion?: number;
+    latitud?: number;
+    longitud?: number;
+    radioMetros?: number;
+    zona?: string;
+  }) => apiClient.post<Comunicado>('/comunicados', payload),
 };
 
 export const UsersAPI = {

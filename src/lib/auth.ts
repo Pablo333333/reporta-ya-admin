@@ -41,3 +41,8 @@ export function isAdminUser(): boolean {
   const user = getCurrentUser();
   return user !== null && ADMIN_ROLES.includes(user.rol as unknown as Rol);
 }
+
+export function isSupervisorUser(): boolean {
+  const user = getCurrentUser();
+  return user?.rol === 'SUPERVISOR';
+}
